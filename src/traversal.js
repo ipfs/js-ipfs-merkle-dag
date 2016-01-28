@@ -64,7 +64,7 @@ var Traversal = function (node, opts) {
         visited.push(current)
       }
       current= waiting.shift()
-      waiting= waiting.concat(getLinkNodes())
+      waiting= getLinkNodes().concat(waiting)
       if(skipDuplicates) {
         waiting = uniqueBy(waiting, function (obj) { return obj.value.key().toString('hex')})
       }
@@ -75,12 +75,15 @@ var Traversal = function (node, opts) {
 
     }
     if(order === 'BFS'){
-      waiting= getLinkNodes().concat(waiting)
-      if(skipDuplicates) {
-        waiting = uniqueBy(waiting, function (obj) { return obj.key().toString('hex')})
+      if(current) {
+        visited.push(current)
       }
-      visited.push(current)
       current= waiting.shift()
+      waiting= waiting.concat(getLinkNodes())
+      waiting.sort(function( a, b ){ return a.depth - b.depth})
+      if(skipDuplicates) {
+        waiting = uniqueBy(waiting, function (obj) { return obj.value.key().toString('hex')})
+      }
     }
   }
   return {

@@ -68,7 +68,10 @@ function DAGNode (data, links) {
   // AddNodeLink adds a link to another node.
   this.addNodeLink = (name, node) => {
     if (typeof name !== 'string') {
-      return
+      throw new Error('Invalid link name')
+    }
+    if (!node) {
+      throw new Error('Invalid node')
     }
     var link = this.makeLink(node)
 

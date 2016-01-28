@@ -11,7 +11,7 @@ var buf6 = new Buffer('node 6')
 var buf7 = new Buffer('node 7')
 var buf8 = new Buffer('node 8')
 var buf9 = new Buffer('node 9')
-var buf10 = new Buffer('node10')
+var buf10 = new Buffer('node 10')
 
 var node1 = new DAGNode()
 var node2 = new DAGNode()
@@ -47,14 +47,47 @@ node3.addNodeLink('6', node6)
 node1.addNodeLink('2', node2)
 node1.addNodeLink('3', node3)
 
-test('dag-traversal: \t\t Traverse nodes in the graph', function(t){
+var nodeA= new DAGNode()
+var nodeB= new DAGNode()
+var nodeC= new DAGNode()
+var nodeD =new DAGNode()
+var nodeE =new DAGNode()
+
+nodeA.data= new Buffer("node A")
+nodeB.data= new Buffer("node B")
+nodeC.data= new Buffer("node C")
+nodeD.data= new Buffer("node D")
+nodeE.data= new Buffer("node E")
+
+nodeC.addNodeLink('D',nodeD)
+nodeC.addNodeLink('E',nodeE)
+nodeA.addNodeLink('C',nodeC)
+nodeA.addNodeLink('B',nodeB)
+
+node2.addNodeLink('A', nodeA)
+
+test('dag-traversal: \t\t Traverse nodes DFS in the graph', function(t){
   node1[Symbol.iterator]= function(){ return Traversal(this, {order:'DFS'})}
+  var dfs= ['node 1','node 2','node A','node B', 'node C', 'node D', 'node E', 'node 3', 'node 4', 'node 5', 'node 6', 'node 7','node 8', 'node 9', 'node 10']
   var i= 0
   for(var next of node1){
-    t.is(nodes[i].key().equals(next.key()), true, 'Traversed to node' + (i+1) +' in the right order')
+    t.is(dfs[i] == next.data.toString(), true, 'Traversed to ' + dfs[i]  +' in the right order')
     i++
   }
 
-  t.is(i== 10, true, 'Got all ten nodes')
+  t.is(i== dfs.length, true, 'Got all nodes')
+  t.end()
+})
+
+test('dag-traversal: \t\t Traverse nodes BFS in the graph', function(t){
+  node1[Symbol.iterator]= function(){ return Traversal(this, {order:'BFS'})}
+  var bfs= ['node 1','node 2','node 3','node A', 'node 4', 'node 5', 'node 6', 'node B', 'node C', 'node 7', 'node 8', 'node 9','node D', 'node E', 'node 10']
+  var i= 0
+  for(var next of node1){
+    t.is(bfs[i] == next.data.toString(), true, 'Traversed to ' + bfs[i] +' in the right order')
+    i++
+  }
+
+  t.is(i== bfs.length, true, 'Got all nodes')
   t.end()
 })

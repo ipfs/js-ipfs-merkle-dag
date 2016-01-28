@@ -16,8 +16,8 @@ var Traversal = function (node, opts) {
   var getLinkNodes = function () {
     var nodes = []
     if (current) {
-      for (var i = 0; i < current.links.length; i++) {
-        var link = current.links[i]
+      for (var i = 0; i < current.value.links.length; i++) {
+        var link = current.value.links[i]
         if (link.node) {
           nodes.push({ value: link.node, depth: (current.depth + 1) })
         } else {
@@ -57,17 +57,18 @@ var Traversal = function (node, opts) {
   }
   var visit = function(){
     if(order === 'DFS'){
+      if(operation && action == 'Post' && waiting[0] && current.depth > waiting[0].depth){
+        operatePost()
+      }
+      if(current) {
+        visited.push(current)
+      }
+      current= waiting.shift()
       waiting= waiting.concat(getLinkNodes())
       if(skipDuplicates) {
         waiting = uniqueBy(waiting, function (obj) { return obj.value.key().toString('hex')})
       }
 
-      if(operation && action == 'Post' && waiting[0] && current.depth > waiting[0].depth){
-        operatePost()
-      }
-
-      visited.push(current)
-      current= waiting.shift()
       if(operation && action == 'Pre'){
           operation(current)
       }
@@ -82,22 +83,27 @@ var Traversal = function (node, opts) {
       current= waiting.shift()
     }
   }
-  this.next= function(){
-    visit()
-    if(current && current.node) {
-      current.done = (waiting.length > 0)
-      return current
-    }else{
-      return {value: null, done: true}
+  return {
+    next : function () {
+      if (waiting.length > 0) {
+        visit()
+        if (current && current.value) {
+          return current
+        } else {
+          return { done: true }
+        }
+      } else {
+        return { done: true }
+      }
+    },
+    currentDepth: function () {
+      if (current) {
+        return current.depth
+      } else {
+        return 0
+      }
     }
-  }
-  this.currentDepth= function(){
-    if(current) {
-     return current.depth
-    }else{
-     return 0
-    }
-  }
+}
 
 }
 module.exports= Traversal

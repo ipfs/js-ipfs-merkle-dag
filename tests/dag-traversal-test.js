@@ -23,6 +23,7 @@ var node7 = new DAGNode()
 var node8 = new DAGNode()
 var node9 = new DAGNode()
 var node10 = new DAGNode()
+//order of a depth first search based upon sorted links by bumber
 var nodes = [node1, node2, node3, node4, node5, node6, node7, node8, node9, node10]
 
 node1.data = buf1
@@ -47,14 +48,13 @@ node1.addNodeLink('2', node2)
 node1.addNodeLink('3', node3)
 
 test('dag-traversal: \t\t Traverse nodes in the graph', function(t){
-  var traversal= new Traversal(node1, {order:'DFS'})
-  console.log(traversal.next().value)
-  console.log(traversal.next().value)
-  console.log(node1)
-  for (var current= traversal.next(); !current.done; current= current.next()){
-    console.log(current.value.key().toString('hex'))
-
+  node1[Symbol.iterator]= function(){ return Traversal(this, {order:'DFS'})}
+  var i= 0
+  for(var next of node1){
+    t.is(nodes[i].key().equals(next.key()), true, 'Traversed to node' + (i+1) +' in the right order')
+    i++
   }
-  t.is(true, true)
+
+  t.is(i== 10, true, 'Got all ten nodes')
   t.end()
 })

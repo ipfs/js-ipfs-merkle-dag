@@ -128,7 +128,7 @@ function Batch (ds, max) {
   this.blocks = []
   this.size = 0
   this.maxSize = max || 0
-
+  var key
   this.add = (node, cb) => {
     if (!node) {
       return cb('Node is invalid')
@@ -143,12 +143,13 @@ function Batch (ds, max) {
     var block = new Block(data)
     this.blocks.push(block)
     if (this.size > this.maxSize) {
-      this.commit(cb, block.key)
+      key= block.key
+      this.commit(cb)
     } else {
       cb(null, block.key)
     }
   }
-  this.commit = (cb, key) => {
+  this.commit = (cb) => {
     var self = this
     this.dagService.blocks().addBlocks(this.blocks, function (err) {
       if (err) {
@@ -156,7 +157,9 @@ function Batch (ds, max) {
       }
       self.blocks = []
       self.size = 0
-      cb(null, key)
+      var last= key;
+      key= null
+      cb(null, last)
     })
   }
 }

@@ -88,7 +88,7 @@ function DAGNode (data, links) {
     }
     encoded = null
     this.links.push(new DAGLink(link.name, link.size, link.hash, link.node))
-    this.links.sort(linkSort)
+    this.links.sort(linkSort)//Keep links sorted!!!! Inconsistent sort makes inconsistent protobuf serialization for the same node
   }
 
   // AddNodeLinkClean adds a link to another node. without keeping a

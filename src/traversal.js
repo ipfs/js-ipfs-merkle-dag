@@ -3,10 +3,10 @@ var deasync = require('deasync')
 
 var Traversal = function (node, opts) {
   if (!node) {
-    throw new Error('Invalid  Root Node')
+    throw new Error('Invalid Root Node')
   }
   var visited = []
-  var waiting = [{value: node, depth: 0}]
+  var waiting = [ { value: node, depth: 0, parent: -1, children: node.links.length } ]
   var current
   var order = opts.order || 'DFS'
   var skipDuplicates = opts.skipDuplicates || true
@@ -17,9 +17,12 @@ var Traversal = function (node, opts) {
     var nodes = []
     if (current) {
       for (var i = 0; i < current.value.links.length; i++) {
-        var link = current.value.links[i]
+        var link = current.value.links[ i ]
         if (link.node) {
-          nodes.push({ value: link.node, depth: (current.depth + 1) })
+          nodes.push({
+            value: link.node, depth: (current.depth + 1),
+            parent: visited.length, children: link.node.links.length
+          })
         } else {
           if (dagService) {
             var done = false
@@ -29,10 +32,13 @@ var Traversal = function (node, opts) {
                 throw new Error(err)
               }
               link.node = node
-              nodes.push({ value: link.node, depth: (current.depth + 1) })
+              nodes.push({
+                value: link.node, depth: (current.depth + 1),
+                parent: visited.length, children: link.node.links.length
+              })
               done = true
             })
-            deasync.loopWhile(function () {return !done } )
+            deasync.loopWhile(function () {return !done })
           } else {
             throw new Error('Invalid DAG Service - Node missing from link')
           }
@@ -42,56 +48,58 @@ var Traversal = function (node, opts) {
     return nodes
   }
   var operatePost = function () {
-    if (current.depth === 0) {
-      return
-    } else {
-      var parentDepth = current.depth - 1
-      for (var i = visited.length-1; i >= 0 ; i--) {
-        var visit = visited[i]
-        if (visit.depth === parentDepth) {
-          operation(visit)
+    if (current.value.links.length === 0) {
+      operation(current)
+      if (current.parent == -1) {
+        return
+      }
+      var parent = visited[ current.parent ]
+      parent.children--;
+      while (parent.children == 0) {
+        operation(parent)
+        if (parent.parent == -1) {
           return
         }
+        parent = visited[ parent.parent ]
+        parent.children--;
       }
     }
   }
-  var visit = function(){
-    if(order === 'DFS'){
-      if(operation && action == 'Post' && waiting[0] && current.depth > waiting[0].depth){
-        operatePost()
-      }
-      if(current) {
+  var visit = function () {
+    if (order === 'DFS') {
+      if (current) {
         visited.push(current)
       }
-      current= waiting.shift()
-      waiting= getLinkNodes().concat(waiting)
-      if(skipDuplicates) {
+      current = waiting.shift()
+      waiting = getLinkNodes().concat(waiting)
+      if (skipDuplicates) {
         waiting = uniqueBy(waiting, function (obj) { return obj.value.key().toString('hex')})
       }
-
-      if(operation && action == 'Pre'){
-          operation(current)
+      if (operation && action == 'Post') {
+        operatePost()
       }
-
+      if (operation && action == 'Pre') {
+        operation(current)
+      }
     }
-    if(order === 'BFS'){
-      if(current) {
+    if (order === 'BFS') {
+      if (current) {
         visited.push(current)
       }
-      current= waiting.shift()
-      waiting= waiting.concat(getLinkNodes())
-      waiting.sort(function( a, b ){ return a.depth - b.depth})
-      if(skipDuplicates) {
+      current = waiting.shift()
+      waiting = waiting.concat(getLinkNodes())
+      waiting.sort(function (a, b) { return a.depth - b.depth})
+      if (skipDuplicates) {
         waiting = uniqueBy(waiting, function (obj) { return obj.value.key().toString('hex')})
       }
     }
   }
   return {
-    next : function () {
+    next: function () {
       if (waiting.length > 0) {
         visit()
         if (current && current.value) {
-          return current
+          return {value: current.value, done: false}
         } else {
           return { done: true }
         }
@@ -106,7 +114,7 @@ var Traversal = function (node, opts) {
         return 0
       }
     }
-}
+  }
 
 }
-module.exports= Traversal
+module.exports = Traversal

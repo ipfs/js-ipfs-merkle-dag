@@ -122,7 +122,7 @@ function DAGService (bs) {
 
 function Batch (ds, max) {
   if (!ds) {
-    throw Error('Invalid DAG Service')
+    throw new Error('Invalid DAG Service')
   }
   this.dagService = ds
   this.blocks = []

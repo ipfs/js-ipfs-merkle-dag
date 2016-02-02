@@ -21,8 +21,48 @@ function DAGNode (data, links) {
     return a.name.localeCompare(b.name)
   }
 
+  // copy - returns a clone of the DAGNode
+  this.copy = () => {
+    var clone = new DAGNode()
+    if (this.data && this.data.length > 0) {
+      var buf = new Buffer(this.data.length)
+      this.data.copy(buf)
+      clone.data = buf
+    }
+
+    if (this.links.length > 0) {
+      clone.links = links.slice()
+    }
+
+    return clone
+  }
+
+  // addNodeLink - adds a DAGLink to this node that points to node by a name
+  this.addNodeLink = (name, node) => {
+    if (typeof name !== 'string') {
+      return
+    }
+    var link = this.makeLink(node)
+
+    if (!link) { return }
+
+    link.name = name
+    this.addRawLink(name, link)
+  }
+
+  // addRawLink adds a Link to this node from a DAGLink
+  this.addRawLink = (name, link) => {
+    if (typeof name !== 'string') {
+      return
+    }
+    encoded = null
+    this.links.push(new DAGLink(link.name, link.size, link.hash))
+    this.links.sort(linkSort)
+  }
+
   // UpdateNodeLink return a copy of the node with the link name set to point to
-  // that. If a link of the same name existed, it is removed.
+  // that. If a link of the same name existed, it is replaced.
+  // TODO this would make more sense as an utility
   this.updateNodeLink = (name, node) => {
     var newnode = this.copy()
     newnode.removeNodeLink(name)
@@ -30,20 +70,7 @@ function DAGNode (data, links) {
     return newnode
   }
 
-  // Copy returns a copy of the node.
-  // NOTE: does not make copies of Node objects in the links.
-  this.copy = () => {
-    if (this.data && this.data.length > 0) {
-      var buf = new Buffer(this.data.length)
-      this.data.copy(buf)
-      var node = new DAGNode()
-      node.data(buf)
-      node.links(links.slice())
-      return node
-    }
-    return null
-  }
-  // Remove a link on this node by the given name
+  // removeNodeLink removes a Link from this node based on name
   this.removeNodeLink = (name) => {
     encoded = null // uncache
     this.links = this.links.filter(link => {
@@ -55,69 +82,22 @@ function DAGNode (data, links) {
     })
   }
 
-  // link to another node
+  // makeLink returns a DAGLink node from a DAGNode
+  // TODO: this would make more sense as an utility
   this.makeLink = (node) => {
     var size = node.size()
-    var mh = node.multiHash()
+    var mh = node.multihash()
     if (!(size && mh)) {
       return null
     }
     return new DAGLink(null, size, mh)
   }
 
-  // AddNodeLink adds a link to another node.
-  this.addNodeLink = (name, node) => {
-    if (typeof name !== 'string') {
-      throw new Error('Invalid link name')
-    }
-    if (!node) {
-      throw new Error('Invalid node')
-    }
-    var link = this.makeLink(node)
-
-    if (!link) {
-      return
-    }
-
-    link.name = name
-    link.node = node
-    this.addRawLink(name, link)
-  }
-
-  // AddRawLink adds a copy of a link to this node
-  this.addRawLink = (name, link) => {
-    if (typeof name !== 'string') {
-      return
-    }
-    encoded = null
-    this.links.push(new DAGLink(link.name, link.size, link.hash, link.node))
-    this.links.sort(linkSort)//Keep links sorted!!!! Inconsistent sort makes inconsistent protobuf serialization for the same node
-  }
-
-  // AddNodeLinkClean adds a link to another node. without keeping a
-  // reference to the child node
-  this.addNodeLinkClean = (name, node) => {
-    if (typeof name !== 'string') {
-      return
-    }
-
-    var link = this.makeLink(node)
-
-    if (!link) {
-      return
-    }
-
-    encoded = null
-    link.name = name
-    this.addRawLink(name, link)
-  }
-
-  this.multiHash = () => {
+  // multihash - returns the multihash value of this DAGNode
+  this.multihash = () => {
     this.encoded()
     return cached
   }
-
-  this.key = this.multiHash
 
   // Size returns the total size of the data addressed by node,
   // including the total sizes of references.
@@ -146,14 +126,15 @@ function DAGNode (data, links) {
     return encoded
   }
 
-  // Encode into a Protobuf
+  // marshal - encodes the DAGNode into a probuf
   this.marshal = () => {
-    var pbn = this.getPBNode()
+    var pbn = toProtoBuf(this)
     var data = mdagpb.PBNode.encode(pbn)
     return data
   }
 
-  // Decode from a Protobuf
+  // unMarshal - decodes a protobuf into a DAGNode
+  // TODO: this would make more sense as an utility
   this.unMarshal = (data) => {
     var pbn = mdagpb.PBNode.decode(data)
     this.links = []
@@ -163,29 +144,33 @@ function DAGNode (data, links) {
       this.links.push(lnk)
     }
     this.links.sort(linkSort)
-    this.data = pbn.Data
+    this.data = pbn.Data || new Buffer(0)
     return this
   }
 
   // Helper method to get a protobuf object equivalent
-  this.getPBNode = () => {
+  function toProtoBuf (node) {
     var pbn = {}
 
-    if (this.data && this.data.length > 0) {
-      pbn.Data = this.data
+    if (node.data && node.data.length > 0) {
+      pbn.Data = node.data
     } else {
-      pbn.Data = new Buffer(0)
+      pbn.Data = null // new Buffer(0)
     }
 
-    pbn.Links = []
+    if (node.links.length > 0) {
+      pbn.Links = []
 
-    for (var i = 0; i < this.links.length; i++) {
-      var link = this.links[i]
-      pbn.Links.push({
-        Hash: link.hash,
-        Name: link.name,
-        Tsize: link.size
-      })
+      for (var i = 0; i < node.links.length; i++) {
+        var link = node.links[i]
+        pbn.Links.push({
+          Hash: link.hash,
+          Name: link.name,
+          Tsize: link.size
+        })
+      }
+    } else {
+      pbn.Links = null
     }
 
     return pbn
@@ -193,9 +178,8 @@ function DAGNode (data, links) {
 }
 
 // Link represents an IPFS Merkle DAG Link between Nodes.
-function DAGLink (linkName, linkSize, linkHash, linkNode) {
-  this.name = linkName
-  this.size = linkSize
-  this.hash = linkHash
-  this.node = linkNode
+function DAGLink (name, size, hash) {
+  this.name = name
+  this.size = size
+  this.hash = hash
 }

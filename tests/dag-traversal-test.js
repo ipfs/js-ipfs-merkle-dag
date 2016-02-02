@@ -66,7 +66,7 @@ describe('dag-traversal', ()=> {
   nodeA.addNodeLink('B', nodeB)
 
   node2.addNodeLink('A', nodeA)
-  it('Traverse nodes DFS in the graph', (done)=> {
+  it('Traverse nodes DFS in the graph', (done) => {
     node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'DFS' })}
     const dfs = [ 'node 1', 'node 2', 'node A', 'node B', 'node C', 'node D', 'node E', 'node 3', 'node 4', 'node 5', 'node 6', 'node 7', 'node 8', 'node 9', 'node 10' ]
     let i = 0
@@ -78,7 +78,7 @@ describe('dag-traversal', ()=> {
     done()
   })
 
-  it('Traverse nodes BFS in the graph', (done)=> {
+  it('Traverse nodes BFS in the graph', (done) => {
     node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'BFS' })}
     const bfs = [ 'node 1', 'node 2', 'node 3', 'node A', 'node 4', 'node 5', 'node 6', 'node B', 'node C', 'node 7', 'node 8', 'node 9', 'node D', 'node E', 'node 10' ]
     let i = 0
@@ -90,7 +90,7 @@ describe('dag-traversal', ()=> {
     done()
   })
 
-  it('Traverse nodes DFS and operate in post', (done)=> {
+  it('Traverse nodes DFS and operate in post', (done) => {
     const dfs = [ 'node B', 'node D', 'node E', 'node C', 'node A', 'node 2', 'node 4', 'node 5', 'node 7', 'node 8', 'node 10', 'node 9', 'node 6', 'node 3', 'node 1' ]
     let i = 0
     let operation = function (current) {
@@ -112,54 +112,47 @@ describe('dag-traversal', ()=> {
     done()
   })
 
+  it('Traverse nodes DFS and operate in Pre', (done) => {
+    const dfs = [ 'node 1', 'node 2', 'node A', 'node B', 'node C', 'node D', 'node E', 'node 3', 'node 4', 'node 5', 'node 6', 'node 7', 'node 8', 'node 9', 'node 10' ]
+    let i = 0
+    let operation = function (current) {
+      expect(dfs[ i ] == current.value.data.toString()).to.equal(true)
+      i++
+    }
+    node1[ Symbol.iterator ] = function () {
+      return Traversal(this, {
+        order: 'DFS',
+        operation: operation,
+        action: 'Pre'
+      })
+    }
+
+    for (var next of node1) {
+    }
+
+    expect(i == dfs.length).to.equal(true)
+    done()
+  })
+  it('Traverse nodes BFS and operate', (done) => {
+    const bfs = [ 'node 1', 'node 2', 'node 3', 'node A', 'node 4', 'node 5', 'node 6', 'node B', 'node C', 'node 7', 'node 8', 'node 9', 'node D', 'node E', 'node 10' ]
+    let i = 0
+    let operation = function (current) {
+      expect(bfs[ i ] == current.value.data.toString()).to.equal(true)
+      i++
+    }
+    node1[ Symbol.iterator ] = function () {
+      return Traversal(this, {
+        order: 'BFS',
+        operation: operation,
+        action: 'Pre'
+      })
+    }
+
+    for (var next of node1) {
+    }
+
+    expect(i == bfs.length).to.equal(true)
+    done()
+  })
 })
 
-
-
-/*
- test('dag-traversal: \t\t Traverse nodes DFS in the graph', function (t) {
- node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'DFS' })}
- var dfs = [ 'node 1', 'node 2', 'node A', 'node B', 'node C', 'node D', 'node E', 'node 3', 'node 4', 'node 5', 'node 6', 'node 7', 'node 8', 'node 9', 'node 10' ]
- var i = 0
- for (var next of node1) {
- t.is(dfs[ i ] == next.data.toString(), true, 'Traversed to ' + dfs[ i ] + ' in the right order')
- i++
- }
-
- t.is(i == dfs.length, true, 'Got all nodes')
- t.end()
- })
-
- test('dag-traversal: \t\t Traverse nodes BFS in the graph', function (t) {
- node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'BFS' })}
- var bfs = [ 'node 1', 'node 2', 'node 3', 'node A', 'node 4', 'node 5', 'node 6', 'node B', 'node C', 'node 7', 'node 8', 'node 9', 'node D', 'node E', 'node 10' ]
- var i = 0
- for (var next of node1) {
- t.is(bfs[ i ] == next.data.toString(), true, 'Traversed to ' + bfs[ i ] + ' in the right order')
- i++
- }
-
- t.is(i == bfs.length, true, 'Got all nodes')
- t.end()
- })
-
- test('dag-traversal: \t\t Traverse nodes DFS and operate in post', function (t) {
- var operation = function (current) {
- console.log('Operation on ' + current.value.data.toString())
- }
- node1[ Symbol.iterator ] = function () {
- return Traversal(this, {
- order: 'DFS',
- operation: operation,
- action: 'Post'
- })
- }
-
- for (var next of node1) {
- console.log(next.data.toString())
- }
-
- t.is(true, true, 'Got all nodes')
- t.end()
- })
- */

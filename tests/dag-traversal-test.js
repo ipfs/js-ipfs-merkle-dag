@@ -3,6 +3,11 @@
 const DAGNode = require('../src/dag-node').DAGNode
 const Traversal = require('../src/traversal')
 const expect = require('chai').expect
+const IPFSRepo = require('ipfs-repo')
+const BlockService = require('ipfs-blocks').BlockService
+const DAGService = require('../src/dag-service')
+const DAGBatch= require('../src/dag-service-batch')
+const async = require('async')
 
 describe('dag-traversal', ()=> {
   var buf1 = new Buffer('node 1')
@@ -66,8 +71,21 @@ describe('dag-traversal', ()=> {
   nodeA.addNodeLink('B', nodeB)
 
   node2.addNodeLink('A', nodeA)
+
+  var repo
+  var blockService
+  var dagService
+  var dagBatch
+
+  before(() => {
+    repo = new IPFSRepo(process.env.IPFS_PATH)
+    blockService = new BlockService(repo)
+    dagService = new DAGService(blockService)
+    dagBatch= new DAGBatch(dagService, 8 * 1024 * 1024)
+
+  })
   it('Traverse nodes DFS in the graph', (done) => {
-    node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'DFS' })}
+    node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'DFS', dagService: dagService })}
     const dfs = [ 'node 1', 'node 2', 'node A', 'node B', 'node C', 'node D', 'node E', 'node 3', 'node 4', 'node 5', 'node 6', 'node 7', 'node 8', 'node 9', 'node 10' ]
     let i = 0
     for (var next of node1) {
@@ -79,7 +97,7 @@ describe('dag-traversal', ()=> {
   })
 
   it('Traverse nodes BFS in the graph', (done) => {
-    node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'BFS' })}
+    node1[ Symbol.iterator ] = function () { return Traversal(this, { order: 'BFS', dagService: dagService })}
     const bfs = [ 'node 1', 'node 2', 'node 3', 'node A', 'node 4', 'node 5', 'node 6', 'node B', 'node C', 'node 7', 'node 8', 'node 9', 'node D', 'node E', 'node 10' ]
     let i = 0
     for (var next of node1) {
@@ -101,7 +119,8 @@ describe('dag-traversal', ()=> {
       return Traversal(this, {
         order: 'DFS',
         operation: operation,
-        action: 'Post'
+        action: 'Post',
+        dagService: dagService
       })
     }
 
@@ -123,7 +142,8 @@ describe('dag-traversal', ()=> {
       return Traversal(this, {
         order: 'DFS',
         operation: operation,
-        action: 'Pre'
+        action: 'Pre',
+        dagService: dagService
       })
     }
 
@@ -144,7 +164,8 @@ describe('dag-traversal', ()=> {
       return Traversal(this, {
         order: 'BFS',
         operation: operation,
-        action: 'Pre'
+        action: 'Pre',
+        dagService: dagService
       })
     }
 

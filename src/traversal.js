@@ -35,7 +35,7 @@ var Traversal = function (node, opts) {
         } else {
           if (dagService) {
             let done = false
-            dagService.get(link.hash().toString('hex'), (err, node) => {
+            dagService.get(link.hash.toString('hex'), (err, node) => {
               if (err) {
                 done = true
                 throw new Error(err)

@@ -2,7 +2,7 @@
 
 const Block = require('ipfs-block')
 const isIPFS = require('is-ipfs')
-const base58 = require('bs58')
+const mh = require('multihashes')
 
 const DAGNode = require('./dag-node')
 
@@ -25,33 +25,78 @@ module.exports = class DAGService {
 
   // get retrieves a DAGNode, using the Block Service
   get (multihash, callback) {
-    const isMhash = isIPFS.multihash(multihash)
-    const isPath = isIPFS.path(multihash)
-
-    if (!isMhash && !isPath) {
-      return callback(new Error('Invalid Key'))
-    }
-
-    if (isMhash) {
-      this.getWith(multihash, callback)
-    }
-
-    if (isPath) {
-      const ipfsKey = multihash.replace('/ipfs/', '')
-      this.getWith(ipfsKey, callback)
-    }
-  }
-
-  getWith (key, callback) {
-    const formatted = typeof key === 'string' ? new Buffer(base58.decode(key)) : key
-    this.bs.getBlock(formatted, (err, block) => {
+    this.getMany([multihash], (err, results) => {
       if (err) {
         return callback(err)
       }
 
-      const node = new DAGNode()
-      node.unMarshal(block.data)
-      return callback(null, node)
+      const key = Object.keys(results)[0]
+
+      if (results[key].error) {
+        return callback(results[key].error)
+      }
+
+      callback(null, results[key])
+    })
+  }
+
+  getMany (mhs, callback) {
+    let err = false
+    const list = mhs.map((m) => {
+      const isMhash = isIPFS.multihash(m)
+      const isPath = isIPFS.path(m)
+
+      if (!isMhash && !isPath) {
+        err = true
+        callback(new Error('Invalid Key'))
+        return
+      }
+      if (isMhash) return m
+      if (isPath) return m.replace('/ipfs/', '')
+    })
+
+    if (err) return
+
+    this.getWithMany(list, callback)
+  }
+
+  getWith (key, callback) {
+    this.getWithMany([key], (err, results) => {
+      if (err) {
+        return callback(err)
+      }
+
+      const key = Object.keys(results)[0]
+
+      if (results[key].error) {
+        return callback(results[key].error)
+      }
+
+      callback(null, results[key].block)
+    })
+  }
+
+  getWithMany (keys, callback) {
+    this.bs.getBlocks(keys.map((key) => {
+      if (Buffer.isBuffer(key)) {
+        return key
+      }
+      return mh.fromB58String(key)
+    }), (err, raw) => {
+      if (err) return callback(err)
+
+      const results = {}
+      Object.keys(raw).forEach((key) => {
+        if (raw[key].error) {
+          return callback(raw[key].error)
+        }
+
+        const node = new DAGNode()
+        node.unMarshal(raw[key].block.data)
+        results[key] = node
+      })
+
+      callback(null, results)
     })
   }
 

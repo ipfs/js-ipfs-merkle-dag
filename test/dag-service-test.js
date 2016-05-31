@@ -25,6 +25,7 @@ module.exports = function (repo) {
       var encodedMh = 'QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG'
       dagService.get(encodedMh, (err, fetchedNode) => {
         expect(err).to.not.exist
+        console.log(fetchedNode)
         expect(fetchedNode.data).to.deep.equal(new Buffer(bs58.decode('cL')))
         // just picking the second link and comparing mhash buffer to expected
         expect(fetchedNode.links[1].hash).to.deep.equal(new Buffer(bs58.decode('QmYCvbfNbCwFR45HiNP45rwJgvatpiW38D961L5qAhUM5Y')))
@@ -56,8 +57,7 @@ module.exports = function (repo) {
       const mh = 'bad path'
       const ipfsPath = '/ipfs/' + mh
       dagService.get(ipfsPath, (err, fetchedNode) => {
-        const error = 'Error: Invalid Key'
-        expect(err.toString()).to.equal(error)
+        expect(err.message).to.be.eql('Invalid Key')
         done()
       })
     })
@@ -65,8 +65,7 @@ module.exports = function (repo) {
     it('supply improperly formatted multihash buffer', (done) => {
       const mh = new Buffer('more data data data')
       dagService.get(mh, (err, fetchedNode) => {
-        const error = 'Error: Invalid Key'
-        expect(err.toString()).to.equal(error)
+        expect(err.message).to.be.eql('Invalid Key')
         done()
       })
     })
@@ -74,8 +73,7 @@ module.exports = function (repo) {
     it('supply something weird', (done) => {
       const mh = 3
       dagService.get(mh, (err, fetchedNode) => {
-        const error = 'Error: Invalid Key'
-        expect(err.toString()).to.equal(error)
+        expect(err.message).to.be.eql('Invalid Key')
         done()
       })
     })

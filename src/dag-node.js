@@ -2,14 +2,12 @@
 
 const protobuf = require('protocol-buffers')
 const stable = require('stable')
-const fs = require('fs')
-const path = require('path')
 const mh = require('multihashes')
 
 const util = require('./util')
 const DAGLink = require('./dag-link')
 
-const proto = protobuf(fs.readFileSync(path.join(__dirname, 'merkledag.proto')))
+const proto = protobuf(require('./merkledag.proto'))
 
 function linkSort (a, b) {
   return (new Buffer(a.name || '', 'ascii').compare(new Buffer(b.name || '', 'ascii')))

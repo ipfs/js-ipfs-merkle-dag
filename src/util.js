@@ -4,5 +4,12 @@ const multihashing = require('multihashing')
 
 exports = module.exports
 
-// Hash is the global IPFS hash function. uses multihash SHA2_256, 256 bits
-exports.hash = (data) => multihashing(data, 'sha2-256')
+// Hash is the global IPFS hash function.
+// Uses multihash SHA2_256, 256 bits as the default
+exports.hash = (data, fn) => {
+  if (!fn) {
+    fn = 'sha2-256'
+  }
+
+  return multihashing(data, fn)
+}

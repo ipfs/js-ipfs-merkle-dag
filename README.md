@@ -99,9 +99,11 @@ var node = new ipfsMDAG.DAGNode([<data>, <[links]>])
 
 > (property) an array of `DAGLink`s belonging to the node
 
-#### `multihash`
+#### `multihash(fn)`
 
 > returns the multihash (default: sha2-256)
+
+`fn` can be any hash function that [`multihashing`](https://github.com/multiformats/js-multihashing) understands.
 
 #### `marshal`
 

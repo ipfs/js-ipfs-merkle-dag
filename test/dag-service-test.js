@@ -6,7 +6,7 @@ const DAGService = require('../src').DAGService
 
 const BlockService = require('ipfs-block-service')
 const bs58 = require('bs58')
-const series = require('run-series')
+const series = require('async/series')
 const pull = require('pull-stream')
 const mh = require('multihashes')
 

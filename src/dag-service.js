@@ -28,7 +28,8 @@ module.exports = class DAGService {
 
   putStream (callback) {
     return pull(
-      pull.map((node) => new Block(node.encoded())),
+      pull.asyncMap((node, cb) => node.encoded(cb)),
+      pull.asyncMap((node, cb) => Block.create(node, cb)),
       this.bs.putStream(),
       pull.onEnd(callback)
     )

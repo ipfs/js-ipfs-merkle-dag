@@ -7,11 +7,13 @@ const DAGService = require('../src').DAGService
 const BlockService = require('ipfs-block-service')
 const bs58 = require('bs58')
 const series = require('async/series')
+const parallel = require('async/parallel')
+const waterfall = require('async/waterfall')
 const pull = require('pull-stream')
 const mh = require('multihashes')
 
-module.exports = function (repo) {
-  describe('DAGService', function () {
+module.exports = (repo) => {
+  describe('DAGService', () => {
     const bs = new BlockService(repo)
     const dagService = new DAGService(bs)
 
@@ -128,21 +130,26 @@ module.exports = function (repo) {
       const node2 = new DAGNode(new Buffer('2'))
       const node3 = new DAGNode(new Buffer('3'))
 
-      node2.addNodeLink('', node3)
-      node1.addNodeLink('', node2)
-
-      pull(
-        pull.values([node1, node2, node3]),
-        dagService.putStream((err) => {
-          if (err) return done(err)
-
-          dagService.getRecursive(node1.multihash(), (err, nodes) => {
+      parallel([
+        (cb) => node2.addNodeLink('', node3, cb),
+        (cb) => node1.addNodeLink('', node2, cb),
+        (cb) => node1.multihash(cb)
+      ], (err, res) => {
+        expect(err).to.not.exist
+        const multihash1 = res[2]
+        pull(
+          pull.values([node1, node2, node3]),
+          dagService.putStream((err) => {
             if (err) return done(err)
-            expect(nodes.length).to.equal(3)
-            done()
+
+            dagService.getRecursive(multihash1, (err, nodes) => {
+              if (err) return done(err)
+              expect(nodes.length).to.equal(3)
+              done()
+            })
           })
-        })
-      )
+        )
+      })
     })
 
     it('get a dag recursively (stream)', (done) => {
@@ -151,37 +158,45 @@ module.exports = function (repo) {
       const node2 = new DAGNode(new Buffer('2'))
       const node3 = new DAGNode(new Buffer('3'))
 
-      node2.addNodeLink('', node3)
-      node1.addNodeLink('', node2)
-
-      pull(
-        pull.values([node1, node2, node3]),
-        dagService.putStream((err) => {
-          if (err) return done(err)
-          pull(
-            dagService.getRecursiveStream(node1.multihash()),
-            pull.collect((err, nodes) => {
-              if (err) return done(err)
-              expect(nodes.length).to.equal(3)
-              done()
-            })
-          )
-        })
-      )
+      parallel([
+        (cb) => node2.addNodeLink('', node3, cb),
+        (cb) => node1.addNodeLink('', node2, cb),
+        (cb) => node1.multihash(cb)
+      ], (err, res) => {
+        expect(err).to.not.exist
+        const multihash1 = res[2]
+        pull(
+          pull.values([node1, node2, node3]),
+          dagService.putStream((err) => {
+            if (err) return done(err)
+            pull(
+              dagService.getRecursiveStream(multihash1),
+              pull.collect((err, nodes) => {
+                if (err) return done(err)
+                expect(nodes.length).to.equal(3)
+                done()
+              })
+            )
+          })
+        )
+      })
     })
 
     it('remove', (done) => {
       const node = new DAGNode(new Buffer('not going to live enough'))
 
-      series([
-        (cb) => dagService.put(node, cb),
-        (cb) => dagService.get(node.multihash(), cb),
-        (cb) => dagService.remove(node.multihash(), cb),
-        (cb) => dagService.get(node.multihash(), (err) => {
-          expect(err).to.exist
-          cb()
-        })
-      ], done)
+      node.multihash((err, digest) => {
+        expect(err).to.not.exist
+        series([
+          (cb) => dagService.put(node, cb),
+          (cb) => dagService.get(digest, cb),
+          (cb) => dagService.remove(digest, cb),
+          (cb) => dagService.get(digest, (err) => {
+            expect(err).to.exist
+            cb()
+          })
+        ], done)
+      })
     })
 
     // tests to see if we are doing the encoding well
@@ -191,20 +206,31 @@ module.exports = function (repo) {
 
       dagService.get(hash, (err, node) => {
         expect(err).to.not.exist
-        expect(hash.equals(node.multihash())).to.equal(true)
-        const n = new DAGNode(node.data, node.links)
-        const cn = n.copy()
-        expect(hash.equals(cn.multihash())).to.equal(true)
-        dagService.put(cn, (err) => {
-          expect(err).to.not.exist
-          dagService.get(cn.multihash(), (err, nodeB) => {
-            expect(err).to.not.exist
-            expect(nodeB.data.equals(node.data)).to.equal(true)
+
+        let cn
+
+        waterfall([
+          (cb) => node.multihash(cb),
+          (digest, cb) => {
+            expect(hash).to.be.eql(digest)
+
+            const n = new DAGNode(node.data, node.links)
+            cn = n.copy()
+
+            cn.multihash(cb)
+          },
+          (digest, cb) => {
+            expect(hash).to.be.eql(digest)
+            dagService.put(cn, cb)
+          },
+          (cb) => dagService.get(hash, cb),
+          (nodeB, cb) => {
+            expect(nodeB.data).to.be.eql(node.data)
             expect(nodeB.links.length).to.equal(node.links.length)
-            expect(nodeB.data.equals(new Buffer('\u0008\u0001'))).to.equal(true)
-            done()
-          })
-        })
+            expect(nodeB.data).to.be.eql(new Buffer('\u0008\u0001'))
+            cb()
+          }
+        ], done)
       })
     })
 
@@ -214,16 +240,18 @@ module.exports = function (repo) {
       const node2 = new DAGNode(new Buffer('b'))
       const node3 = new DAGNode(new Buffer('c'))
 
-      node2.addNodeLink('', node3)
-      node1.addNodeLink('', node2)
-
       series([
+        (cb) => node2.addNodeLink('', node3, cb),
+        (cb) => node1.addNodeLink('', node2, cb),
         (cb) => dagService.put(node1, cb),
         // on purpose, do not add node2
         // (cb) => dagService.put(node2, cb),
         (cb) => dagService.put(node3, cb),
         (cb) => pull(
-          dagService.getRecursiveStream(node1.multihash()),
+          pull.values([node1]),
+          pull.asyncMap((n, cb) => n.multihash(cb)),
+          pull.map((digest) => dagService.getRecursiveStream(digest)),
+          pull.flatten(),
           pull.collect((err, nodes) => {
             if (err) return cb(err)
             expect(nodes.length).to.equal(1)
@@ -235,22 +263,22 @@ module.exports = function (repo) {
 
     it('get a node with unnamed links', (done) => {
       var b58MH = 'QmRR6dokkN7dZzNZUuqqvUGWbuwvXkavWC6dJY3nT17Joc'
-      dagService.get(b58MH, (err, node) => {
-        expect(err).to.not.exist
-        expect(node.toJSON().Links).to.deep.equal([
-          {
+      waterfall([
+        (cb) => dagService.get(b58MH, cb),
+        (node, cb) => node.toJSON(cb),
+        (json, cb) => {
+          expect(json.Links).to.deep.equal([{
             Name: '',
             Size: 45623854,
             Hash: 'QmREcKL7eXVme1ZmedsBYwLUnYmqYt3QyeJfthnp1SGo3z'
-          },
-          {
+          }, {
             Name: '',
             Size: 41485691,
             Hash: 'QmWEpWQA5mJL6KzRzGqL6RCsFhLCWmovx6wHji7BzA8qmi'
-          }
-        ])
-        done()
-      })
+          }])
+          cb()
+        }
+      ], done)
     })
   })
 }

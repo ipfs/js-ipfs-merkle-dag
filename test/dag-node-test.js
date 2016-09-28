@@ -13,7 +13,7 @@ const waterfall = require('async/waterfall')
 const parallel = require('async/parallel')
 
 module.exports = function (repo) {
-  describe.only('DAGNode', function () {
+  describe('DAGNode', function () {
     it('create a node', function (done) {
       const dagN = new DAGNode(new Buffer('some data'))
       expect(dagN.data.length > 0).to.equal(true)
@@ -147,42 +147,83 @@ module.exports = function (repo) {
       const dagNode2 = new DAGNode(new Buffer('22'))
       const dagNode3 = new DAGNode(new Buffer('333'))
 
-      const dagNode1Size = dagNode1.size()
-      const dagNode1Multihash = dagNode1.multihash()
+      parallel([
+        (cb) => dagNode1.size(cb),
+        (cb) => dagNode1.multihash(cb)
+      ], (err, res) => {
+        expect(err).to.not.exist
+        const dagNode1Size = res[0]
+        const dagNode1Multihash = res[1]
 
-      dagNode1.addNodeLink('next', dagNode2)
-      expect(dagNode1.links.length > 0).to.equal(true)
-      expect(dagNode1.size() > dagNode1Size).to.equal(true)
-
-      dagNode1.addNodeLink('next', dagNode3)
-      expect(dagNode1.links.length > 1).to.equal(true)
-      expect(dagNode1.size() > dagNode1Size).to.equal(true)
-
-      expect(dagNode1.multihash().equals(dagNode1Multihash)).to.equal(false)
-
-      dagNode1.removeNodeLink('next')
-
-      expect(dagNode1.multihash().equals(dagNode1Multihash)).to.equal(true)
-      done()
+        waterfall([
+          (cb) => dagNode1.addNodeLink('next', dagNode2, cb),
+          (cb) => {
+            expect(dagNode1.links).to.have.length.above(0)
+            dagNode1.size(cb)
+          },
+          (size, cb) => {
+            expect(size).to.be.above(dagNode1Size)
+            dagNode1.addNodeLink('next', dagNode3, cb)
+          },
+          (cb) => {
+            expect(dagNode1.links).to.have.length.above(1)
+            dagNode1.size(cb)
+          },
+          (size, cb) => {
+            expect(size).to.be.above(dagNode1Size)
+            dagNode1.multihash(cb)
+          },
+          (digest, cb) => {
+            expect(digest).to.not.eql(dagNode1Multihash)
+            dagNode1.removeNodeLink('next')
+            dagNode1.multihash(cb)
+          },
+          (digest, cb) => {
+            expect(digest).to.be.eql(dagNode1Multihash)
+            cb()
+          }
+        ], done)
+      })
     })
 
     it('remove link to a node by hash', function (done) {
       const dagNode1 = new DAGNode(new Buffer('4444'))
       const dagNode2 = new DAGNode(new Buffer('22'))
 
-      const dagNode1Size = dagNode1.size()
-      const dagNode1Multihash = dagNode1.multihash()
+      parallel([
+        (cb) => dagNode1.size(cb),
+        (cb) => dagNode1.multihash(cb)
+      ], (err, res) => {
+        expect(err).to.not.exist
+        const dagNode1Size = res[0]
+        const dagNode1Multihash = res[1]
 
-      dagNode1.addNodeLink('next', dagNode2)
-      expect(dagNode1.links.length > 0).to.equal(true)
-      expect(dagNode1.size() > dagNode1Size).to.equal(true)
-
-      expect(dagNode1.multihash().equals(dagNode1Multihash)).to.equal(false)
-      expect(dagNode1.links[0].hash.equals(dagNode2.multihash())).to.equal(true)
-      dagNode1.removeNodeLinkByHash(dagNode2.multihash())
-      expect(dagNode1.links.length).to.equal(0)
-      expect(dagNode1.multihash().equals(dagNode1Multihash)).to.equal(true)
-      done()
+        waterfall([
+          (cb) => dagNode1.addNodeLink('next', dagNode2, cb),
+          (cb) => {
+            expect(dagNode1.links).to.have.length.above(0)
+            dagNode1.size(cb)
+          },
+          (size, cb) => {
+            expect(size).to.be.above(dagNode1Size)
+            dagNode1.multihash(cb)
+          },
+          (digest, cb) => {
+            expect(digest).to.not.be.eql(dagNode1Multihash)
+            dagNode2.multihash(cb)
+          },
+          (digest, cb) => {
+            expect(dagNode1.links[0].hash).to.be.eql(digest)
+            dagNode1.removeNodeLinkByHash(digest)
+            expect(dagNode1.links).to.be.empty
+            dagNode1.multihash(cb)
+          },
+          (digest, cb) => {
+            expect(digest).to.be.eql(dagNode1Multihash)
+            cb()
+          }
+        ], done)
+      })
     })
 
     it('marshal a node and store it with block-service', (done) => {
@@ -191,11 +232,14 @@ module.exports = function (repo) {
       const dagN = new DAGNode(new Buffer('some data'))
       expect(dagN.data.length > 0).to.equal(true)
       expect(Buffer.isBuffer(dagN.data)).to.equal(true)
-      expect(dagN.size() > 0).to.equal(true)
-      expect(dagN.data.equals(dagN.unMarshal(dagN.marshal()).data)).to.equal(true)
+      expect(dagN.data).to.be.eql(dagN.unMarshal(dagN.marshal()).data)
 
       waterfall([
-        (cb) => Block.create(dagN.marshal(), cb),
+        (cb) => dagN.size(cb),
+        (size, cb) => {
+          expect(size).to.be.above(0)
+          Block.create(dagN.marshal(), cb)
+        },
         (b, cb) => bs.put(b, (err) => {
           expect(err).to.not.exist
 
@@ -230,38 +274,47 @@ module.exports = function (repo) {
 
     it('dagNode.toJSON with empty Node', (done) => {
       const node = new DAGNode(new Buffer(0))
-      const nodeJSON = node.toJSON()
-      expect(nodeJSON.Data).to.deep.equal(new Buffer(0))
-      expect(nodeJSON.Links).to.deep.equal([])
-      expect(nodeJSON.Hash).to.exist
-      expect(nodeJSON.Size).to.exist
-      done()
+      node.toJSON((err, json) => {
+        expect(err).to.not.exist
+
+        expect(json.Data).to.be.eql(new Buffer(0))
+        expect(json.Links).to.be.eql([])
+        expect(json.Hash).to.be.a('String')
+        expect(json.Size).to.be.eql(0)
+        done()
+      })
     })
 
     it('dagNode.toJSON with data no links', (done) => {
       const node = new DAGNode(new Buffer('La cucaracha'))
-      const nodeJSON = node.toJSON()
-      expect(nodeJSON.Data).to.deep.equal(new Buffer('La cucaracha'))
-      expect(nodeJSON.Links).to.deep.equal([])
-      expect(nodeJSON.Hash).to.exist
-      expect(nodeJSON.Size).to.exist
-      done()
+      node.toJSON((err, json) => {
+        expect(err).to.not.exist
+        expect(json.Data).to.be.eql(new Buffer('La cucaracha'))
+        expect(json.Links).to.be.eql([])
+        expect(json.Hash).to.be.a('String')
+        expect(json.Size).to.be.above(0)
+        done()
+      })
     })
 
     it('dagNode.toJSON with data and links', (done) => {
       const node1 = new DAGNode(new Buffer('hello'))
       const node2 = new DAGNode(new Buffer('world'))
-      node1.addNodeLink('continuation', node2)
-      const node1JSON = node1.toJSON()
-      expect(node1JSON.Data).to.deep.equal(new Buffer('hello'))
-      expect(node1JSON.Links).to.deep.equal([{
-        Hash: 'QmPfjpVaf593UQJ9a5ECvdh2x17XuJYG5Yanv5UFnH3jPE',
-        Name: 'continuation',
-        Size: 7
-      }])
-      expect(node1JSON.Hash).to.exist
-      expect(node1JSON.Size).to.exist
-      done()
+      waterfall([
+        (cb) => node1.addNodeLink('continuation', node2, cb),
+        (cb) => node1.toJSON(cb),
+        (node1JSON, cb) => {
+          expect(node1JSON.Data).to.be.eql(new Buffer('hello'))
+          expect(node1JSON.Links).to.be.eql([{
+            Hash: 'QmPfjpVaf593UQJ9a5ECvdh2x17XuJYG5Yanv5UFnH3jPE',
+            Name: 'continuation',
+            Size: 7
+          }])
+          expect(node1JSON.Hash).to.be.a('String')
+          expect(node1JSON.Size).to.be.above(0)
+          cb()
+        }
+      ], done)
     })
 
     it('create a unnamed dagLink', (done) => {

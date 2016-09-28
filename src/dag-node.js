@@ -106,35 +106,28 @@ module.exports = class DAGNode {
   // UpdateNodeLink return a copy of the node with the link name set to point to
   // that. If a link of the same name existed, it is replaced.
   // TODO this would make more sense as an utility
-  updateNodeLink (name, node) {
+  updateNodeLink (name, node, callback) {
     const newnode = this.copy()
     newnode.removeNodeLink(name)
-    newnode.addNodeLink(name, node)
-    return newnode
+    newnode.addNodeLink(name, node, (err) => {
+      if (err) {
+        return callback(err)
+      }
+
+      callback(null, newnode)
+    })
   }
 
   // removeNodeLink removes a Link from this node based on name
   removeNodeLink (name) {
     this._encoded = null // uncache
-    this.links = this.links.filter((link) => {
-      if (link.name === name) {
-        return false
-      } else {
-        return true
-      }
-    })
+    this.links = this.links.filter((link) => link.name !== name)
   }
 
   // removeNodeLink removes a Link from this node based on a multihash
   removeNodeLinkByHash (multihash) {
     this._encoded = null // uncache
-    this.links = this.links.filter((link) => {
-      if (link.hash.equals(multihash)) {
-        return false
-      } else {
-        return true
-      }
-    })
+    this.links = this.links.filter((link) => !link.hash.equals(multihash))
   }
 
   // makeLink returns a DAGLink node from a DAGNode

@@ -1,6 +1,6 @@
 'use strict'
 
-const multihashing = require('multihashing')
+const multihashing = require('multihashing-async')
 
 exports = module.exports
 

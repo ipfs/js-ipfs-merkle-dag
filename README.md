@@ -1,8 +1,7 @@
 # [DEPRECATED] js-ipfs-merkle-dag
 
-**DEPRECATED** Please use https://github.com/ipld/js-ipld-dag-pb/ instead
+# DEPRECATED Please use [ipld/js-ipld-dag-pb](https://github.com/ipld/js-ipld-dag-pb) and [ipld/js-ipld-resolver](https://github.com/ipld/js-ipld-resolver) instead
 
--- 
 
 [![](https://img.shields.io/badge/made%20by-Protocol%20Labs-blue.svg?style=flat-square)](http://ipn.io)
 [![](https://img.shields.io/badge/project-IPFS-blue.svg?style=flat-square)](http://ipfs.io/)

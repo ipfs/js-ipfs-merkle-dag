@@ -2,14 +2,12 @@
 
 const protobuf = require('protocol-buffers')
 const stable = require('stable')
-const fs = require('fs')
-const path = require('path')
 const mh = require('multihashes')
 
 const util = require('./util')
 const DAGLink = require('./dag-link')
 
-const proto = protobuf(fs.readFileSync(path.join(__dirname, 'merkledag.proto')))
+const proto = protobuf(require('./merkledag.proto'))
 
 function linkSort (a, b) {
   return (new Buffer(a.name || '', 'ascii').compare(new Buffer(b.name || '', 'ascii')))
@@ -139,8 +137,8 @@ module.exports = class DAGNode {
   }
 
   // multihash - returns the multihash value of this DAGNode
-  multihash () {
-    this.encoded()
+  multihash (fn) {
+    this.encoded(fn)
     return this._cached
   }
 
@@ -157,12 +155,17 @@ module.exports = class DAGNode {
 
   // Encoded returns the encoded raw data version of a Node instance.
   // It may use a cached encoded version, unless the force flag is given.
-  encoded (force) {
+  encoded (fn, force) {
+    if (typeof fn === 'boolean') {
+      force = fn
+      fn = undefined
+    }
+
     if (force || !this._encoded) {
       this._encoded = this.marshal()
 
       if (this._encoded) {
-        this._cached = util.hash(this._encoded)
+        this._cached = util.hash(this._encoded, fn)
       }
     }
     return this._encoded

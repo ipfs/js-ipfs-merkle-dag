@@ -8,6 +8,7 @@ const DAGNode = require('../src').DAGNode
 const BlockService = require('ipfs-block-service')
 const Block = require('ipfs-block')
 const bs58 = require('bs58')
+const mh = require('multihashes')
 
 module.exports = function (repo) {
   describe('DAGNode', function () {
@@ -55,6 +56,22 @@ module.exports = function (repo) {
       expect(dagN.size()).to.equal(0)
       expect(dagN.data.equals(dagN.unMarshal(dagN.marshal()).data)).to.equal(true)
       done()
+    })
+
+    describe('multihash', () => {
+      it('defaults to sha2-256', () => {
+        const node = new DAGNode(new Buffer('4444'))
+        const res = mh.decode(node.multihash())
+
+        expect(res).to.have.property('name', 'sha2-256')
+      })
+
+      it('can use a different hash function', () => {
+        const node = new DAGNode(new Buffer('4444'))
+        const res = mh.decode(node.multihash('sha1'))
+
+        expect(res).to.have.property('name', 'sha1')
+      })
     })
 
     it('create a link', function (done) {

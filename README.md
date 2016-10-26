@@ -15,12 +15,35 @@
 
 ## Table of Contents
 
-- [Install](#install)
-- [Architecture](#architecture)
-- [Usage](#usage)
-- [API](#api)
-- [Contribute](#contribute)
-- [License](#license)
+* [Table of Contents](#table-of-contents)
+* [Install](#install)
+* [Architecture](#architecture)
+* [Usage](#usage)
+* [API](#api)
+  + [DAGNode Class](#dagnode-class)
+    - [`addNodeLink`](#addnodelink)
+    - [`addRawLink`](#addrawlink)
+    - [`updateNodeLink`](#updatenodelink)
+    - [`removeNodeLink`](#removenodelink)
+    - [`removeNodeLinkByHash`](#removenodelinkbyhash)
+    - [`copy`](#copy)
+    - [`size`](#size)
+    - [`links`](#links)
+    - [`multihash(fn)`](#multihashfn)
+    - [`marshal`](#marshal)
+    - [`unMarshal`](#unmarshal)
+    - [`getPBNode`](#getpbnode)
+    - [`makeLink`](#makelink)
+  + [DAGLink Class](#daglink-class)
+  + [DAGService](#dagservice)
+    - [`put`](#put)
+    - [`putStream`](#putstream)
+    - [`get`](#get)
+    - [`getStream`](#getstream)
+    - [`getRecursive`](#getrecursive)
+    - [`getRecursiveStream`](#getrecursivestream)
+    - [`remove`](#remove)
+* [License](#license)
 
 ## Install
 
@@ -101,9 +124,11 @@ var node = new ipfsMDAG.DAGNode([<data>, <[links]>])
 
 > (property) an array of `DAGLink`s belonging to the node
 
-#### `multihash`
+#### `multihash(fn)`
 
 > returns the multihash (default: sha2-256)
+
+`fn` can be any hash function that [`multihashing`](https://github.com/multiformats/js-multihashing) understands.
 
 #### `marshal`
 

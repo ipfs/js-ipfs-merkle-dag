@@ -15,12 +15,35 @@
 
 ## Table of Contents
 
-- [Install](#install)
-- [Architecture](#architecture)
-- [Usage](#usage)
-- [API](#api)
-- [Contribute](#contribute)
-- [License](#license)
+* [Table of Contents](#table-of-contents)
+* [Install](#install)
+* [Architecture](#architecture)
+* [Usage](#usage)
+* [API](#api)
+  + [DAGNode Class](#dagnode-class)
+    - [`addNodeLink`](#addnodelink)
+    - [`addRawLink`](#addrawlink)
+    - [`updateNodeLink`](#updatenodelink)
+    - [`removeNodeLink`](#removenodelink)
+    - [`removeNodeLinkByHash`](#removenodelinkbyhash)
+    - [`copy`](#copy)
+    - [`size`](#size)
+    - [`links`](#links)
+    - [`multihash(fn)`](#multihashfn)
+    - [`marshal`](#marshal)
+    - [`unMarshal`](#unmarshal)
+    - [`getPBNode`](#getpbnode)
+    - [`makeLink`](#makelink)
+  + [DAGLink Class](#daglink-class)
+  + [DAGService](#dagservice)
+    - [`put`](#put)
+    - [`putStream`](#putstream)
+    - [`get`](#get)
+    - [`getStream`](#getstream)
+    - [`getRecursive`](#getrecursive)
+    - [`getRecursiveStream`](#getrecursivestream)
+    - [`remove`](#remove)
+* [License](#license)
 
 ## Install
 
@@ -68,56 +91,62 @@ Create a new DAGNode
 var node = new ipfsMDAG.DAGNode([<data>, <[links]>])
 ```
 
-#### `addNodeLink`
+#### `addNodeLink(name, node, callback)`
 
 > creates a link on node A to node B by using node B to get its multihash
 
-#### `addRawLink`
+#### `addRawLink(link)`
 
 > creates a link on node A to node B by using directly node B multihash
 
-#### `updateNodeLink`
+#### `updateNodeLink(name, node, callback)`
 
 > updates a link on the node. *caution* this method returns a copy of the MerkleDAG node
 
-#### `removeNodeLink`
+#### `removeNodeLink(name)`
 
 > removes a link from the node by name
 
-#### `removeNodeLinkByHash`
+#### `removeNodeLinkByHash(multihash)`
 
 > removes a link from the node by the hash of the linked node
 
 
-#### `copy`
+#### `copy()`
 
 > creates a copy of the MerkleDAG Node
 
-#### `size`
+#### `size(callback)`
 
-> (property) size of the node, in bytes
+> get the size of the node, in bytes
 
 #### `links`
 
 > (property) an array of `DAGLink`s belonging to the node
 
-#### `multihash`
+#### `multihash([hashIdentifier, ] callback)`
 
 > returns the multihash (default: sha2-256)
 
-#### `marshal`
+`hashIdentifier` can be any hash function that [`multihashing`](https://github.com/multiformats/js-multihashing) understands.
+
+#### `marshal()`
 
 > returns a protobuf serialized version, compatible with go-ipfs MerkleDAG
 
-#### `unMarshal`
+#### `unMarshal(data)`
 
 > deserializes a node encoded using protobuf
+
+#### `toJSON(cb)`
+
+> generate a `JSON` representation of the node
 
 #### `getPBNode`
 
 > used internally
 
-#### `makeLink`
+#### `makeLink(node, callback)`
 
 > used internally
 
